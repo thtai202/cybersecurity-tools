@@ -1,4 +1,5 @@
 import socket
+import ipaddress
 import sys
 
 
@@ -26,8 +27,20 @@ def GetInput():
             return result
         print("thtai--scanner TARGET [-p PORT]")
                 
-target, port = GetInput();
+
+#Validating the target
+def ValidatingTarget(target):
+    try:
+        ipaddress.ip_address(target)
+        return True
+    except ValueError:
+        return False
+
+
+
+target, port = GetInput()
 print(target, port)
+print(ValidatingTarget(target))
 
 #creating the socket
 # try:
