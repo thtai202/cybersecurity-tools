@@ -10,6 +10,8 @@ def ParsingCommand(userInput):
     if len(parts) < 2 and parts[0] !='thtai-scanner':
         return None
     target = parts[1]
+    domain = socket.gethostbyaddr(target)[0]
+    ip = socket.gethostbyname(target)
     port = 80 #default port
     if '-p' in parts:
         i = parts.index('-p')
@@ -17,7 +19,7 @@ def ParsingCommand(userInput):
             port = int(parts[i+1])
         else:
             return None
-    return target, port 
+    return target, port, ip, domain
             
 #Input
 def GetInput():
@@ -38,9 +40,14 @@ def ValidatingTarget(target):
 
 
 
-target, port = GetInput()
-print(target, port)
-print(ValidatingTarget(target))
+target, port, ip, domain = GetInput()
+
+if ValidatingTarget(target) == True:
+    print("Target is validated.")
+    print("Target: ", domain)
+    print("IP: ", ip)
+    print("Port: ", port)
+
 
 #creating the socket
 # try:
