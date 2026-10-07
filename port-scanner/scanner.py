@@ -3,24 +3,40 @@ import ipaddress
 import sys
 
 
-
 #Command should look like: thtai-scanner TARGET. Parsing it
 def ParsingCommand(userInput):
     parts = userInput.split()
-    if len(parts) < 2 and parts[0] !='thtai-scanner':
+    if len(parts) < 2 or parts[0] !='thtai-scanner':
         return None
     target = parts[1]
-    domain = socket.gethostbyaddr(target)[0]
-    ip = socket.gethostbyname(target)
-    port = 80 #default port
+    # Resolve IP
+    try:
+        ip = socket.gethostbyname(target)
+    except socket.gaierror:
+        return None
+    # Resolve hostname
+    if target == ip:
+        try:
+            domain = socket.gethostbyaddr(ip)[0]
+        except socket.herror:
+            domain = None
+    else:
+        domain = target
+
+    # parsing ports
+    ports = [80] #default port
     if '-p' in parts:
         i = parts.index('-p')
-        if i+1 < len(parts) and parts[i + 1].isdigit():
-            port = int(parts[i+1])
+        if i+1 < len(parts):
+            try:
+                ports = [int(port) for port in parts[i + 1].split(',')]
+                if any(port < 1 or port > 65535 for port in ports):
+                    return None
+            except ValueError:
+                return None
         else:
             return None
-    return target, port, ip, domain
-            
+    return target, ports, ip, domain
 #Input
 def GetInput():
     while True:
@@ -28,8 +44,6 @@ def GetInput():
         if result:
             return result
         print("thtai--scanner TARGET [-p PORT]")
-                
-
 #Validating the target
 def ValidatingTarget(target):
     try:
@@ -37,32 +51,32 @@ def ValidatingTarget(target):
         return True
     except ValueError:
         return False
+# Connecting to ports
+def ScanPort(ip, port):
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(2)
 
+        s.connect((ip, port))
+        return "OPEN"
 
+    except socket.timeout:
+        return "TIMEOUT"
 
-target, port, ip, domain = GetInput()
+    except ConnectionRefusedError:
+        return "CLOSED"
+
+    finally:
+        s.close()
+
+target, ports, ip, domain = GetInput()
 
 if ValidatingTarget(target) == True:
     print("Target is validated.")
     print("Target: ", domain)
     print("IP: ", ip)
-    print("Port: ", port)
+    print("Port: ", ports)
 
-
-#creating the socket
-# try:
-#     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#     print ("Socket successfully created")
-# except socket.error as err:
-#     print ("socket creation failed with error %s" %(err))
-
-# try:
-#     ip = socket.gethostbyname(TARGET)
-# except socket.gaierror:
-#     print("hostname could not be resolved.")
-#     sys.exit()
-
-#connecting to the server
-#s.connect((ip, port))
-#print(ip)
-#print ("Successfully connect")
+    for port in ports:
+        result = ScanPort(ip, port)
+        print(f"Port {port}: {result}")
