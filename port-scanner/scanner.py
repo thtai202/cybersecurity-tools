@@ -8,8 +8,35 @@ def ParsingCommand(userInput):
     parts = userInput.split()
     if len(parts) < 2 or parts[0] !='thtai-scanner':
         return None
-    target = parts[1]
-    # Resolve IP
+
+    target = None
+    ports = [80]  # default port
+
+    skip = False
+    # parsing ports
+    for i,part in enumerate(parts[1:]):
+        if skip:
+            skip = False
+            continue
+
+        if '-p' == part:
+            if i + 2 < len(parts):
+                try:
+                    ports = [int(port) for port in parts[i + 2].split(',')]
+                    if any(port < 1 or port > 65535 for port in ports):
+                        return None
+                except ValueError:
+                    return None
+
+                skip = True
+            else:
+                return None
+        else:
+            if target is not None:
+                return None
+
+            target = part
+        # Resolve IP
     try:
         ip = socket.gethostbyname(target)
     except socket.gaierror:
@@ -22,28 +49,35 @@ def ParsingCommand(userInput):
             domain = None
     else:
         domain = target
-
-    # parsing ports
-    ports = [80] #default port
-    if '-p' in parts:
-        i = parts.index('-p')
-        if i+1 < len(parts):
-            try:
-                ports = [int(port) for port in parts[i + 1].split(',')]
-                if any(port < 1 or port > 65535 for port in ports):
-                    return None
-            except ValueError:
-                return None
-        else:
-            return None
     return target, ports, ip, domain
+# Test cases
+test_cases = [
+    "thtai-scanner 127.0.0.1",
+    "thtai-scanner 127.0.0.1 -p 80,443",
+    "thtai-scanner -p 80,443 127.0.0.1",
+    "thtai-scanner dns.google -p 53,80"
+]
+
+for command in test_cases:
+    print(f"\n>>> {command}")
+
+    result = ParsingCommand(command)
+
+    if result:
+        target, ports, ip, domain = result
+        print("Target:", target)
+        print("IP:", ip)
+        print("Ports:", ports)
+        print("Domain:", domain)
+    else:
+        print("Invalid command")
 #Input
 def GetInput():
     while True:
         result = ParsingCommand(input('>>> '))
         if result:
             return result
-        print("thtai--scanner TARGET [-p PORT]")
+        print("thtai-scanner TARGET [-p PORT]")
 #Validating the target
 def ValidatingTarget(target):
     try:
@@ -53,30 +87,26 @@ def ValidatingTarget(target):
         return False
 # Connecting to ports
 def ScanPort(ip, port):
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(2)
 
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.settimeout(2)
         s.connect((ip, port))
         return "OPEN"
-
     except socket.timeout:
         return "TIMEOUT"
-
     except ConnectionRefusedError:
         return "CLOSED"
-
     finally:
         s.close()
 
 target, ports, ip, domain = GetInput()
 
-if ValidatingTarget(target) == True:
-    print("Target is validated.")
-    print("Target: ", domain)
-    print("IP: ", ip)
-    print("Port: ", ports)
 
-    for port in ports:
-        result = ScanPort(ip, port)
-        print(f"Port {port}: {result}")
+print("Target: ", domain)
+print("IP: ", ip)
+print("Port: ", ports)
+
+for port in ports:
+    result = ScanPort(ip, port)
+    print(f"Port {port}: {result}")
