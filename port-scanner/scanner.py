@@ -1,7 +1,13 @@
 import socket
 import ipaddress
 import sys
-
+# Test cases
+test_cases = [
+    # IP, domain, ports
+    ("93.184.216.34", "example.com", [80]),
+    ("142.250.72.14", "google.com", [80]),
+    ("1.1.1.1", "cloudflare.com", [80]),
+]
 
 #Command should look like: thtai-scanner TARGET. Parsing it
 def ParsingCommand(userInput):
@@ -129,28 +135,7 @@ def ParsingCommand(userInput):
     else:
         domain = target
     return target, ports, ip, domain
-# Test cases
-test_cases = [
-    "thtai-scanner 127.0.0.1",
-    "thtai-scanner 127.0.0.1 -p 80,443",
-    "thtai-scanner -p 80,443 127.0.0.1",
-    "thtai-scanner dns.google -p 53,80"
-]
 
-for command in test_cases:
-    print(f"\n>>> {command}")
-
-    result = ParsingCommand(command)
-
-    if result:
-        target, ports, ip, domain = result
-        print("Target:", target)
-        print("IP:", ip)
-        print("Ports:", ports)
-        print("Domain:", domain)
-    else:
-        print("Invalid command")
-#Input
 def GetInput():
     while True:
         result = ParsingCommand(input('>>> '))
@@ -178,7 +163,37 @@ def ScanPort(ip, port):
         return "CLOSED"
     finally:
         s.close()
+# Banner Grabbing
+def BannerGrabbing(ip,domain, ports):
+    request = (
+    "GET / HTTP/1.1\r\n"
+    f"Host: {domain}\r\n"
+    "\r\n"
+    )
+    #Converting request -> bytes
+    request = request.encode()
+    for port in ports:
+        try:
+            #Making connect
+            s = socket.socket()
+            s.settimeout(5) 
+            s.connect((ip, int(port)))
+            
+            s.sendall(request)
 
+            banner = s.recv(1024).decode(errors="ignore").strip()
+            print(f"Banner for {ip}:{port} -> {banner}")
+            
+        except socket.timeout:
+                print(f"{ip}:{port}: Timeout")
+        except socket.error as e:
+                print(f"{ip}:{port} -> Error: {e}")
+        finally: 
+            s.close()
+
+for ip, domain,ports in test_cases:
+    print(f"\n>>> BannerGrabbing({ip}, {domain},{ports})")
+    BannerGrabbing(ip, domain, ports)
 target, ports, ip, domain = GetInput()
 
 
@@ -186,6 +201,5 @@ print("Target: ", domain)
 print("IP: ", ip)
 print("Port: ", ports)
 
-for port in ports:
-    result = ScanPort(ip, port)
-    print(f"Port {port}: {result}")
+
+
